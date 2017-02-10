@@ -1,0 +1,36 @@
+.qtable-fc {
+  display: flex;
+  flex-direction: row;
+  align-content: space-between;
+  justify-content: space-between;
+  align-items: center;
+  .qtable-pagination {
+    padding: 0;
+    list-style: none;
+    li {
+      list-style: none;
+      display: inline-block;
+      margin: 3px 1px;
+      &.active {
+        color: #e8e8e8;
+        a:hover {
+          background: inherit;
+          cursor: default;
+        }
+      }
+      a {
+        cursor: pointer;
+        padding: 4px 7px;
+        border: 1px solid #ccc;
+        font-weight: bold;
+        font-size: 10px;
+        min-width: 16px;
+        display: block;
+        text-align: center;
+        &:hover {
+          background: #e8e8e8;
+        }
+      }
+    }
+  }
+}
