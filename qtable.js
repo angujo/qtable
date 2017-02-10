@@ -28,6 +28,7 @@
             data.push(row);
         });
         return data;
+
     };
     qTable.footer = function () {
     };
@@ -88,18 +89,39 @@
             qTable.staticLoad(options, holder, data, parseInt($(this).val()));
         });
     };
-    qTable.query = function (url, start, length) {
+    qTable.query = function (holder, url, options, rows, pg) {
+        pg = pg || 1;
+        rows = rows || options.pagination.rows[0];
         var req = $.ajax(url, {
             cache: false,
-            complete: function () {
+            beforeSend: function () {
+                holder.find('.qtable-overlay').css({display: 'flex'});
             },
-            data: {start: start, length: length}, dataType: 'json', error: function (jq, st, err) {
-                alert(err);
+            complete: function () {
+                holder.find('.qtable-overlay').css({display: 'none'});
+            },
+            data: {start: ((pg - 1) * rows), length: rows}, dataType: 'json',
+            error: function (jq, st, err) {
+                alert('Error encountered. Log this on https://github.com/angujo/qtable');
             }, method: 'get',
-            success: function () {
-
+            success: function (res) {
+                var pages = Math.ceil(res.rows / rows);
+                qTable.body(holder.find('table'), res.data, rows, pg);
+                qTable.footerControls(holder, pages, pg, options.pagination.pages);
+                holder.off('click', 'li:not(.active) a').on('click', 'li:not(.active) a', function (e) {
+                    e.preventDefault();
+                    pg = parseInt($(this).data('pg'));
+                    qTable.query(holder, url, options, rows, pg);
+                }).off('change', '.qtable-hc select').on('change', '.qtable-hc select', function (e) {
+                    e.preventDefault();
+                    qTable.query(holder, url, options, parseInt($(this).val()));
+                });
             }
         });
+    };
+    qTable.dynamic = function (holder, url, options) {
+        holder.prepend('<div class="qtable-overlay"><span>Loading Data...</span></div>');
+        qTable.query(holder, url, options);
     };
     qTable.init = function (o_table, options) {
         var holder = $('<div class="q-tabulated"></div>'),
@@ -107,7 +129,8 @@
             data = qTable.tableData(table);
         table.appendTo(holder);
         qTable.headerControls(holder, options.pagination.rows);
-        qTable.staticLoad(options, holder, data, options.pagination.rows[0]);
+        if (table.data('fetch')) qTable.dynamic(holder, table.data('fetch'), options);
+        else qTable.staticLoad(options, holder, data, options.pagination.rows[0]);
         holder.insertAfter(o_table);
         o_table.remove();
     };
