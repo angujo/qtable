@@ -1,3 +1,13 @@
+.qtable-hc {
+  display: flex;
+  flex-direction: row;
+  align-content: space-between;
+  justify-content: space-between;
+  align-items: center;
+}
+.hidden {
+  display: none !important;
+}
 .qtable-fc {
   display: flex;
   flex-direction: row;
