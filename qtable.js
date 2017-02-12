@@ -2,9 +2,18 @@
  * Created by bangujo on 09/02/2017.
  */
 
-(function ($, window, document) {
-    var qTable = {}, defaults = {search: true, sort: true, pagination: {rows: [10, 20, 50, 100], pages: 5}};
-    qTable.header = function (table) {
+(function ($) {
+    var qTable = {}, defaults = {search: true, sort: true, rows: [10, 20, 50, 100], pages: 5, rowsCount: 10, data: [], pData: []};
+    qTable.header = function (holder, options) {
+        var qs = [], qr = $('<tr></tr>');
+        holder.find('thead tr:last-child th').each(function () {
+            if ($(this).data('qsearch')) qs.push('<td><input name="' + $(this).data('qsearch') + '"/></td>');
+            else qs.push('<td></td>');
+        });
+        if (qs.length) {
+            qr.append(qs.join(''));
+            qr.appendTo(holder.find('thead'));
+        }
     };
     qTable.body = function (table, fdata) {
         fdata = fdata || [];
@@ -67,32 +76,34 @@
         fc.appendTo(holder);
         return fc;
     };
-    qTable.headerControls = function (holder, rows) {
-        var hc = $('<div class="qtable-hc"><label>Rows:<select></select></label></div>');
-        for (var i = 0; i < rows.length; i++) {
-            hc.find('select').append('<option value="' + rows[i] + '">' + rows[i] + '</option>')
+    qTable.headerControls = function (holder, options) {
+        var hc = $('<div class="qtable-hc"><label>Rows:<select></select></label></div>'), sel = '';
+        for (var i = 0; i < options.rows.length; i++) {
+            sel = options.rowsCount == options.rows[i] ? 'selected' : '';
+            hc.find('select').append('<option value="' + options.rows[i] + '" ' + sel + '>' + options.rows[i] + '</option>')
         }
         hc.prependTo(holder);
     };
-    qTable.staticLoad = function (options, holder, data, rows, pg) {
+    qTable.staticLoad = function (options, holder, rows, pg) {
         pg = pg || 1;
-        var s = ((pg - 1) * rows), e = (s + rows), fd = data.slice(s, e);
+        var s = ((pg - 1) * rows), e = (s + rows), fd = options.data.slice(s, e);
         qTable.body(holder.find('table'), fd, rows, pg);
-        var pages = Math.ceil(data.length / rows);
-        qTable.footerControls(holder, pages, pg, options.pagination.pages);
+        var pages = Math.ceil(options.data.length / rows);
+        qTable.footerControls(holder, pages, pg, options.pages);
         holder.off('click', 'li:not(.active) a').on('click', 'li:not(.active) a', function (e) {
             e.preventDefault();
             var pg = parseInt($(this).data('pg'));
-            qTable.staticLoad(options, holder, data, rows, pg);
+            qTable.staticLoad(options, holder, rows, pg);
         }).off('change', '.qtable-hc select').on('change', '.qtable-hc select', function (e) {
             e.preventDefault();
-            qTable.staticLoad(options, holder, data, parseInt($(this).val()));
+            qTable.staticLoad(options, holder, parseInt($(this).val()));
         });
     };
     qTable.query = function (holder, url, options, rows, pg) {
         pg = pg || 1;
-        rows = rows || options.pagination.rows[0];
-        var req = $.ajax(url, {
+        rows = rows || options.rowsCount;
+        holder.find('table').data('qopts', JSON.stringify(options));
+        $.ajax(url, {
             cache: false,
             beforeSend: function () {
                 holder.find('.qtable-overlay').css({display: 'flex'});
@@ -101,20 +112,21 @@
                 holder.find('.qtable-overlay').css({display: 'none'});
             },
             data: {start: ((pg - 1) * rows), length: rows}, dataType: 'json',
-            error: function (jq, st, err) {
+            error: function () {
                 alert('Error encountered. Log this on https://github.com/angujo/qtable');
             }, method: 'get',
             success: function (res) {
                 var pages = Math.ceil(res.rows / rows);
                 qTable.body(holder.find('table'), res.data, rows, pg);
-                qTable.footerControls(holder, pages, pg, options.pagination.pages);
+                qTable.footerControls(holder, pages, pg, options.pages);
                 holder.off('click', 'li:not(.active) a').on('click', 'li:not(.active) a', function (e) {
                     e.preventDefault();
                     pg = parseInt($(this).data('pg'));
                     qTable.query(holder, url, options, rows, pg);
                 }).off('change', '.qtable-hc select').on('change', '.qtable-hc select', function (e) {
                     e.preventDefault();
-                    qTable.query(holder, url, options, parseInt($(this).val()));
+                    options.rowsCount = parseInt($(this).val());
+                    qTable.query(holder, url, options, options.rowsCount);
                 });
             }
         });
@@ -124,21 +136,80 @@
         qTable.query(holder, url, options);
     };
     qTable.init = function (o_table, options) {
-        var holder = $('<div class="q-tabulated"></div>'),
-            table = o_table.clone(true),
-            data = qTable.tableData(table);
-        table.appendTo(holder);
-        qTable.headerControls(holder, options.pagination.rows);
+        var holder = $('<div class="q-tabulated"></div>'), tWrapper = $('<div class="qtable-responsive"></div>'),
+            table = o_table.clone(true), data = qTable.tableData(table);
+        table.data('qopts', JSON.stringify(options));
+        table.appendTo(tWrapper);
+        tWrapper.appendTo(holder);
+        qTable.headerControls(holder, options);
+        options.data = data;
+        qTable.header(table, options);
         if (table.data('fetch')) qTable.dynamic(holder, table.data('fetch'), options);
-        else qTable.staticLoad(options, holder, data, options.pagination.rows[0]);
-        holder.insertAfter(o_table);
-        o_table.remove();
+        else qTable.staticLoad(options, holder, options.rowsCount);
+        if (o_table.closest('.q-tabulated').length) {
+            holder.insertAfter(o_table.closest('.q-tabulated'));
+            o_table.closest('.q-tabulated').remove();
+        }
+        else {
+            holder.insertAfter(o_table);
+            o_table.remove();
+        }
+        holder.off('focusout', 'input').on('focusout', 'input', function () {
+            var st = [];
+            $(this).closest('tr').find('input').each(function () {
+                if ($(this).val().length) {
+                    var i = $(this).closest('td').index();
+                    st.push({i: i, v: $(this).val()});
+                }
+            });
+            if (table.data('fetch')) {
+            }
+            else {
+                if (st.length > 0) {
+                    options.data = $.grep(data, function (v, i) {
+                        var s = 0;
+                        for (var i = 0; i < st.length; i++) {
+                            if (v[st[i].i].toLowerCase().indexOf(st[i].v.toLowerCase()) !== -1) s++;
+                        }
+                        return s == st.length;
+                    });
+                } else {
+                    options.data = data;
+                }
+                qTable.staticLoad(options, holder, options.rowsCount);
+            }
+        });
     };
-    $.fn.qtable = function (options) {
-        options = $.extend(defaults, options, {});
+    $.fn.qTable = function (options) {
         this.filter('table').each(function () {
+            if (typeof options !== 'object') {
+                switch (options) {
+                    case 'reload':
+                        break;
+                    default:
+                        if (isURL(options) && 'reload') {
+                            $(this).data('fetch', options);
+                        }
+                        break;
+                }
+                options = $(this).data('qopts') ? JSON.parse($(this).data('qopts')) : defaults;
+            } else {
+                options = $.extend(defaults, options, {});
+                if (options.rowsCount != options.rows[0]) options.rowsCount = options.rows[0];
+            }
             qTable.init($(this), options);
         });
         return this;
     };
+
+
+    function isURL(str) {
+        var pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
+            '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|' + // domain name
+            '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+            '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+            '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+            '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locator
+        return pattern.test(str);
+    }
 })(jQuery, Window, Document);

@@ -22,6 +22,25 @@
   align-content: center;
   align-items: center;
 }
+.q-tabulated > *:not(.qtable-overlay) {
+  padding: 10px 5px 0;
+}
+.q-tabulated .qtable-responsive {
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+.q-tabulated .qtable-responsive table {
+  min-width: 60%;
+  width: 100%;
+  max-width: 98%;
+}
+.q-tabulated .qtable-responsive table thead input {
+  display: inline-block;
+  line-height: 1.5;
+  padding: 1% 3%;
+  min-width: 12px;
+  width: 96%;
+}
 .hidden {
   display: none !important;
 }

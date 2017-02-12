@@ -7,7 +7,7 @@
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
-<table class="pure-table pure-table-bordered" data-fetch="json.php">
+<table class="pure-table pure-table-bordered q-table" data-fetch="json.php" id="table-ajax">
     <thead>
     <tr>
         <th>id</th>
@@ -21,8 +21,23 @@
     </thead>
     <tbody></tbody>
 </table>
+<hr>
+<table>
+    <tr>
+        <td>
+            <button class="q-reload" type="button">Reload</button></td>
+    </tr>
+    <tr>
+        <td>
+            <button class="q-link" type="button">Load Link</button></td>
+        <td><input type="url" class="l-item"></td>
+    </tr>
+</table>
+<p></p>
 <script type="application/javascript" rel="script" src="jquery-3.1.1.min.js"></script>
 <script type="application/javascript" rel="script" src="qtable.min.js"></script>
 <script type="application/javascript" rel="script" src="script.js"></script>
+<script>
+</script>
 </body>
 </html>

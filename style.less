@@ -24,6 +24,27 @@
     align-content: center;
     align-items: center;
   }
+  > *:not(.qtable-overlay) {
+    padding: 10px 5px 0;
+  }
+  .qtable-responsive {
+    overflow-x: auto;
+    padding-bottom: 10px;
+    table {
+      min-width: 60%;
+      width: 100%;
+      max-width: 98%;
+      thead {
+        input {
+          display: inline-block;
+          line-height: 1.5;
+          padding: 1% 3%;
+          min-width: 12px;
+          width: 96%;
+        }
+      }
+    }
+  }
 }
 
 .hidden {
