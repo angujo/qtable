@@ -73,6 +73,25 @@
 			}
 			if (this.settings.url) this._ajax(); else this._basic();
 		}, _ajax           : function () {
+			var me = this;
+			$.ajax(me.settings.url, {
+				cache     : false,
+				beforeSend: function () {
+					me._overlayStart();
+				},
+				complete  : function () {
+					me._overlayStop();
+				},
+				data      : {start: ((me.page - 1) * me.rows), length: me.rows}, dataType: 'json',
+				error     : function () {
+					alert('Error encountered. Log this on https://github.com/angujo/qtable');
+				}, method : 'get',
+				success   : function (res) {
+					me.data = res.data;
+					me.dataCount = res.rows;
+					me._setData();
+				}
+			});
 		}, _basic          : function () {
 			this._overlayStart();
 			var d = [];
@@ -109,7 +128,6 @@
 			mrgn = (mrgn % 2) ? mrgn : mrgn + 1;
 			this.page = this.page > pgs ? pgs : (this.page <= 0 ? 1 : this.page);
 			if (pgs <= this.settings.pgn || this.page <= mrgn) {
-				console.log(this.settings.pgn);
 				var _pgn = pgs > this.settings.pgn ? this.settings.pgn : pgs;
 				for (p = 1; p <= _pgn; p++) {
 					sp.push(p);
@@ -127,7 +145,6 @@
 					}
 				}
 			}
-			console.log(this.rows, pgs, sp, this.page);
 			this.$footer.find('.qtable-pd').html('');
 			this.$footer.find('.qtable-pagination').html('');
 			this.$footer.show();
@@ -153,12 +170,12 @@
 			var me = this;
 			this.$footer.on('click', 'li:not(.active) a', function () {
 				me.page = $(this).data('pg');
-				me._setData();
+				if (me.settings.url) me._ajax(); else me._setData();
 			});
 			this.$header.on('change', 'select', function () {
 				me.page = 1;
 				me.rows = parseInt($(this).val());
-				me._setData();
+				if (me.settings.url) me._ajax(); else me._setData();
 			});
 		}, _overlayStart   : function () {
 			if (!this.overlay) {

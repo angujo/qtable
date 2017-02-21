@@ -1007,7 +1007,7 @@ $data  = [[1, 'Amanda', 'Wright', 'awright0@usnews.com', 'Female', '135.114.57.8
           [998, 'Jonathan', 'Sims', 'jsimsrp@tuttocitta.it', 'Male', '98.95.41.250', 14890],
           [999, 'Stephen', 'Bell', 'sbellrq@unicef.org', 'Male', '1.180.2.129', 82072],
           [1000, 'Sarah', 'Richards', 'srichardsrr@jimdo.com', 'Female', '149.13.144.47', 72403]];
-//while (TRUE) {}
+sleep(5);
 header('Content-Type:application/json;charset:utf8;');
 $d = ['rows' => count($data), 'data' => array_slice($data, $start, $len)];
 echo json_encode($d);
