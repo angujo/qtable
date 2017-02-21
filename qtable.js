@@ -3,7 +3,7 @@
  */
 
 (function ($) {
-    var qTable = {}, defaults = {search: true, sort: true, rows: [10, 20, 50, 100], pages: 5, rowsCount: 10, data: [], pData: []};
+    var qTable = {}, defaults = {search: true, sort: true, rows: [10, 20, 50, 100], pages: 5, rowsCount: 10, data: [], pData: false};
     qTable.header = function (holder, options) {
         var qs = [], qr = $('<tr></tr>');
         holder.find('thead tr:last-child th').each(function () {
@@ -89,6 +89,7 @@
         var s = ((pg - 1) * rows), e = (s + rows), fd = options.data.slice(s, e);
         qTable.body(holder.find('table'), fd, rows, pg);
         var pages = Math.ceil(options.data.length / rows);
+        console.log(options.data.length);
         qTable.footerControls(holder, pages, pg, options.pages);
         holder.off('click', 'li:not(.active) a').on('click', 'li:not(.active) a', function (e) {
             e.preventDefault();
@@ -135,9 +136,9 @@
         holder.prepend('<div class="qtable-overlay"><span>Loading Data...</span></div>');
         qTable.query(holder, url, options);
     };
-    qTable.init = function (o_table, options) {
+    qTable.init = function (o_table, _options) {
         var holder = $('<div class="q-tabulated"></div>'), tWrapper = $('<div class="qtable-responsive"></div>'),
-            table = o_table.clone(true), data = qTable.tableData(table);
+            table = o_table.clone(true), data = qTable.tableData(table), options = _options;
         table.data('qopts', JSON.stringify(options));
         table.appendTo(tWrapper);
         tWrapper.appendTo(holder);
@@ -145,7 +146,9 @@
         options.data = data;
         qTable.header(table, options);
         if (table.data('fetch')) qTable.dynamic(holder, table.data('fetch'), options);
-        else qTable.staticLoad(options, holder, options.rowsCount);
+        else {
+            qTable.staticLoad(options, holder, options.rowsCount);
+        }
         if (o_table.closest('.q-tabulated').length) {
             holder.insertAfter(o_table.closest('.q-tabulated'));
             o_table.closest('.q-tabulated').remove();
@@ -166,7 +169,8 @@
             }
             else {
                 if (st.length > 0) {
-                    options.data = $.grep(data, function (v, i) {
+                    var nOptions = options;
+                    nOptions.data = $.grep(data, function (v, i) {
                         var s = 0;
                         for (var i = 0; i < st.length; i++) {
                             if (v[st[i].i].toLowerCase().indexOf(st[i].v.toLowerCase()) !== -1) s++;
@@ -174,9 +178,12 @@
                         return s == st.length;
                     });
                 } else {
-                    options.data = data;
+                    nOptions.data = data;
                 }
-                qTable.staticLoad(options, holder, options.rowsCount);
+                if (nOptions.pData) {
+                    qTable.staticLoad(nOptions, holder, nOptions.rowsCount);
+                    options.pData = nOptions.data.length != data.length;
+                }
             }
         });
     };

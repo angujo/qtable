@@ -2,7 +2,7 @@
  * Created by bangujo on 09/02/2017.
  */
 (function ($) {
-    $('.q-table').qTable({rows:[25,45,60,250]});
+    $('.q-table').qTable({pageRows:[5,45,60,250]});
     $('.q-reload').click(function () {
         reload();
     });
