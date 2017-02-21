@@ -23,13 +23,14 @@
 		this.$element = $(element).clone(true);
 
 		this.settings = $.extend({}, defaults, options);
-		this._defaults = defaults;
-		this._name = pluginName;
+		//this._defaults = defaults;
+		//this._name = pluginName;
 		this.page = 1;
 		this.pages = 0;
 		this.data = [];
 		this.dataCount = 0;
 		this.currentData = [];
+		this.overlay = null;
 		this.rows = this.settings.pageRows[0];
 		this._data_parameters();
 		this.init();
@@ -49,7 +50,7 @@
 			h.insertAfter($(this.element));
 			$(this.element).remove();
 			this.$header = hc;
-			this.$body = tw;
+			//this.$body = tw;
 			this.$footer = fc;
 			this._header();
 			this._body();
@@ -73,8 +74,9 @@
 			if (this.settings.url) this._ajax(); else this._basic();
 		}, _ajax           : function () {
 		}, _basic          : function () {
+			this._overlayStart();
 			var d = [];
-			this.$element.find('tbody>tr').each(function (e) {
+			this.$element.find('tbody>tr').each(function () {
 				var row = [];
 				$(this).find('td,th').each(function () {
 					row.push($(this).html());
@@ -97,6 +99,7 @@
 				this.$element.find('tbody').append('<tr>' + r.join('') + '</tr>');
 			}
 			this._footer();
+			this._overlayStop();
 		}, _remove         : function () {
 			//TODO some animations for out
 			this.$element.find('tbody').html("");
@@ -148,7 +151,7 @@
 		},
 		_actions           : function () {
 			var me = this;
-			this.$footer.on('click', 'li:not(.active) a', function (e) {
+			this.$footer.on('click', 'li:not(.active) a', function () {
 				me.page = $(this).data('pg');
 				me._setData();
 			});
@@ -157,7 +160,15 @@
 				me.rows = parseInt($(this).val());
 				me._setData();
 			});
-		},
+		}, _overlayStart   : function () {
+			if (!this.overlay) {
+				this.overlay = $('<div class="qtable-overlay"><span>Loading Data...</span></div>');
+				this.overlay.prependTo(this.$element.parent());
+			}
+			this.overlay.css({display: 'flex'});
+		}, _overlayStop    : function () {
+			if (this.overlay) this.overlay.css({display: 'none'});
+		}
 	});
 
 	// A really lightweight plugin wrapper around the constructor,
