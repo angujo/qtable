@@ -1,7 +1,7 @@
 /**
  * Created by bangujo on 21/02/2017.
  */
-;(function ($, window, document, undefined) {
+;(function ($) {
 	"use strict";
 	var pluginName = "qTable",
 		defaults = {
@@ -20,11 +20,10 @@
 
 	// The actual plugin constructor
 	function Plugin(element, options) {
-		this.element = element;
-		this.$element = $(element).clone(true);
+		this.$element = $(element);
 
 		this.settings = $.extend({}, defaults, options);
-		//this._defaults = defaults;
+		this._options = options;
 		//this._name = pluginName;
 		this.settings.pgn = parseInt(this.settings.pgn) < 5 ? 5 : parseInt(this.settings.pgn);
 		this.ajax = null;
@@ -47,12 +46,11 @@
 				tw = $('<div class="qtable-responsive"></div>'),
 				hc = $('<div class="qtable-hc"><label>Rows:<select></select></label></div>'),
 				fc = $('<div class="qtable-fc"><div class="qtable-pd"></div><ul class="qtable-pagination"></ul></div>');
-			this.$element.appendTo(tw);
 			hc.appendTo(h);
 			tw.appendTo(h);
 			fc.appendTo(h);
-			h.insertAfter($(this.element));
-			$(this.element).remove();
+			h.insertAfter(this.$element);
+			this.$element.appendTo(tw);
 			this.$header = hc;
 			//this.$body = tw;
 			this.$footer = fc;
@@ -89,7 +87,7 @@
 		}, _qoptions       : function (element, searches) {
 			var options = element.data('qoptions').split(',');
 			for (var i = 0; i < options.length; i++) {
-				if (this.ajax && !element.closest('th,td').data('qname')) continue;
+				if (this.ajax && !element.closest('th,td').data('qname').toString().length) continue;
 				switch (options[i].trim()) {
 					case 'sort':
 						if (element.hasClass('q-sorted')) continue;
@@ -101,7 +99,7 @@
 						element.addClass('q-searched');
 						searches.push({
 							              i: element.closest('th,td').index(),
-							              f: '<input name="qsearch[' + (element.closest('th,td').data('qname') && this.ajax ? element.closest('th,td').data('qname') : '') + ']">'
+							              f: '<input name="' + (element.closest('th,td').data('qname').toString().length && this.ajax ? element.closest('th,td').data('qname') : '') + '">'
 						              });
 						break;
 				}
@@ -121,17 +119,24 @@
 		}, _ajax           : function () {
 			var me = this, d = {start: ((me.page - 1) * me.rows), length: me.rows};
 			d = $.extend({}, d, this.ajax.data);
-			$.ajax(me.ajax.url, {
+			if (this.ajax.run && this.ajax.status) {
+				this.ajax.run.abort();
+			}
+			this.ajax.run = $.ajax(me.ajax.url, {
 				cache     : false,
 				beforeSend: function () {
 					me._overlayStart();
+					me.ajax.status = true;
 				},
 				complete  : function () {
 					me._overlayStop();
+					me.ajax.status = false;
 				},
-				data      : d, dataType: 'json',
+				data      : {qtable: d}, dataType: 'json',
 				error     : function () {
-					alert('Error encountered. Log this on https://github.com/angujo/qtable');
+					if (!me.ajax.status) {
+						alert('Error encountered. Log this on https://github.com/angujo/qtable');
+					}
 				}, method : 'get',
 				success   : function (res) {
 					me.data = res.data;
@@ -155,7 +160,7 @@
 		}, _data_parameters: function () {
 			this.settings.url = this.$element.data('url') ? this.$element.data('url') : this.settings.url;
 			if (this.settings.url) {
-				this.ajax = {url: this.settings.url, data: {}};
+				this.ajax = {url: this.settings.url, data: {}, run: null, status: false};
 			}
 		}, _setData        : function () {
 			if (this.ajax) {
@@ -240,64 +245,155 @@
 				me._sort();
 			});
 			this.$element.on('keyup', 'thead>tr.q-search input', function () {
-				if (me.settings.searchCharacters > $(this).val().length) return;
-				console.log($(this).val());
+				me._search();
 			});
-		}, _sort           : function (queryOnly) {
+		},
+		_search            : function (queryOnly, filtered) {
+			filtered = filtered || false;
 			queryOnly = queryOnly || false;
-			var indices = [], me = this;
+			var indices = this.ajax ? {} : [], me = this;
+			this.$element.find('thead>tr.q-search input').each(function () {
+				if (!$(this).val() || me.settings.searchCharacters > $(this).val().length) return true;
+				if (me.ajax) {
+					if ($(this).attr('name').toString().length) {
+						indices[$(this).attr('name')] = $(this).val();
+					}
+				}
+				else indices.push({i: $(this).closest('th,td').index(), v: $(this).val()});
+			});
+			if (this.ajax) {
+				this.ajax.data.search = indices;
+				if (queryOnly) return;
+				this._ajax();
+				return;
+			}
+			if (indices.length) {
+				var d = filtered ? this.filteredData : JSON.parse(JSON.stringify(this.data));
+				this.filteredData = [];
+				for (var i = 0; i < d.length; i++) {
+					var s = true;
+					for (var j = 0; j < indices.length; j++) {
+						if (d[i][indices[j].i].toString().toLowerCase().indexOf(indices[j].v.toString().toLowerCase()) == -1) {
+							s = false;
+							break;
+						}
+					}
+					if (s) this.filteredData.push(d[i]);
+				}
+			} else {
+				this.filteredData = filtered ? this.filteredData : [];
+			}
+			this.page = 1;
+			this.dataCount = indices.length || filtered ? this.filteredData.length : this.data.length;
+			this._setData();
+		},
+		_sort              : function (queryOnly, filtered) {
+			filtered = filtered || false;
+			queryOnly = queryOnly || false;
+			var indices = this.ajax ? {} : [], me = this;
 			this.$element.find('thead tr a.q-sorter.qsort-asc,thead tr a.q-sorter.qsort-desc').each(function () {
 				if (me.ajax) {
-					if ($(this).closest('th,td').data('qname')) {
-						indices.push([$(this).closest('th,td').data('qname'), ($(this).hasClass('qsort-desc') ? 'desc' : 'asc')]);
+					if ($(this).closest('th,td').data('qname').toString().length) {
+						indices[$(this).closest('th,td').data('qname')] = ($(this).hasClass('qsort-desc') ? 'desc' : 'asc');
 					}
 				}
 				else indices.push({i: $(this).closest('th,td').index(), o: $(this).hasClass('qsort-desc')});
 			});
 			if (this.ajax) {
-				this.ajax.data.push({order: indices});
+				this.ajax.data.order = indices;
 				if (queryOnly) return;
+				this._ajax();
 				return;
 			}
 			if (indices.length) {
-				this.filteredData = this.data;
+				this.filteredData = filtered ? this.filteredData : JSON.parse(JSON.stringify(this.data));
 				for (var i = 0; i < indices.length; i++) {
-					this.filteredData.sort(function (a, b) {
-						var a1 = a[indices[i].i],
-							b1 = b[indices[i].i];
-						if (indices[i].o) {
-							a1 = b[indices[i].i];
-							b1 = a[indices[i].i];
-						}
-						if (!isNaN(a1) && !isNaN(b1)) {
-							return a1 - b1;
-						}
-						a1 = a1.toString();
-						b1 = b1.toString();
-						return a1.localeCompare(b1);
-					});
+					(function (i, m) {
+						m.filteredData.sort(function (a, b) {
+							var a1 = a[indices[i].i],
+								b1 = b[indices[i].i];
+							if (indices[i].o) {
+								a1 = b[indices[i].i];
+								b1 = a[indices[i].i];
+							}
+							if (!isNaN(a1) && !isNaN(b1)) {
+								return a1 - b1;
+							}
+							a1 = a1.toString();
+							b1 = b1.toString();
+							return a1.localeCompare(b1);
+						});
+					})(i, this);
 				}
 			} else {
-				this.filteredData = [];
+				this.filteredData = filtered ? this.filteredData : [];
 			}
 			this._setData();
-		}, _overlayStart   : function () {
+		},
+		_overlayStart      : function () {
 			if (!this.overlay) {
 				this.overlay = $('<div class="qtable-overlay"><span>Loading Data...</span></div>');
 				this.overlay.prependTo(this.$element.parent());
 			}
 			this.overlay.css({display: 'flex'});
-		}, _overlayStop    : function () {
+		},
+		_overlayStop       : function () {
 			if (this.overlay) this.overlay.css({display: 'none'});
 		}
 	});
 
+	var methods = {
+		gotoPage: function (page) {
+			this.page = page;
+			if (this.ajax) this._ajax(); else this._setData();
+		},
+		reload  : function () {
+			var set = this._options, $t = this.$element;
+			this.destroy();
+			$t.qTable(set);
+		},
+		refresh : function () {
+			this.reload();
+		},
+		destroy : function () {
+			this.$element.insertAfter(this.$header.parent());
+			this.$header.parent().remove();
+			this.$element.find('thead>tr.q-search').remove();
+			this.$element.find('.q-searched').removeClass('q-searched');
+			this.$element.find('.q-sorted').each(function () {
+				$(this).html($(this).find('.q-sorter').html()).removeClass('q-sorted');
+			});
+			if (this.ajax) {
+				//TODO should we clear the contents? Leave the page as is. For instances where user just needs to load data and stop
+			} else {
+				this.rows = this.data.length;
+				this.page = 1;
+				this._setData();
+			}
+			$.removeData(this.$element.get(0), "plugin_" + pluginName);
+		},
+		tester  : function () {
+			console.log(arguments);
+		}
+	};
+
 	// A really lightweight plugin wrapper around the constructor,
 	// preventing against multiple instantiations
-	$.fn[pluginName] = function (options) {
+	$.fn[pluginName] = function (options, opt_value) {
+		var args = arguments;
 		return this.each(function () {
-			if (!$.data(this, "plugin_" + pluginName)) {
+			if (!$(this).is('table')) return true;
+			if ((!options || (options && typeof options == 'object') || 'create' == options) && !$.data(this, "plugin_" + pluginName)) {
 				$.data(this, "plugin_" + pluginName, new Plugin(this, options));
+			} else {
+				if (methods[options]) {
+					if (!$.data(this, "plugin_" + pluginName)) return true;
+					args = $.map(args, function (v) {
+						return v;
+					});
+					args.shift();
+					methods[options].apply($.data(this, "plugin_" + pluginName), args);
+				}
 			}
 		});
 	};
