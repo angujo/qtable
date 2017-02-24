@@ -194,6 +194,8 @@
 			}, ti);
 			if (this.ajax.lazyTotal > this.data.length) {
 				this._ajax();
+			} else {
+				this.ajax.lazy = false;
 			}
 		},
 		_lazyProgress   : function (w) {
@@ -429,26 +431,27 @@
 	});
 
 	var methods = {
-		set_data: function (theData) {
+		set_data   : function (theData) {
 			this.ajax = null;
 			this.page = 1;
 			this.data = theData;
 			this.dataCount = theData.length;
 			this._setData();
 		},
-		gotoPage: function (page) {
+		gotoPage   : function (page) {
 			this.page = page;
 			if (this.ajax) this._ajax(); else this._setData();
 		},
-		reload  : function () {
-			var set = this._options, $t = this.$element;
+		reload     : function (options) {
+			options = options || {};
+			var set = $.extend({}, this._options, options), $t = this.$element;
 			this.destroy();
 			$t.qTable(set);
 		},
-		refresh : function () {
+		refresh    : function () {
 			this.reload();
 		},
-		destroy : function () {
+		destroy    : function () {
 			this.$element.insertAfter(this.$header.parent());
 			this.$header.parent().remove();
 			this.$element.find('thead>tr.q-search').remove();
@@ -456,7 +459,7 @@
 			this.$element.find('.q-sorted').each(function () {
 				$(this).html($(this).find('.q-sorter').html()).removeClass('q-sorted');
 			});
-			if (this.ajax) {
+			if (this.ajax && !this.ajax.lazy) {
 				//TODO should we clear the contents? Leave the page as is. For instances where user just needs to load data and stop
 			} else {
 				this.rows = this.data.length;
@@ -464,8 +467,11 @@
 				this._setData();
 			}
 			$.removeData(this.$element.get(0), "plugin_" + pluginName);
+		}, load_url: function (url) {
+			this.ajax.url = url;
+			this._ajax();
 		},
-		tester  : function () {
+		tester     : function () {
 			console.log(arguments);
 		}
 	};
