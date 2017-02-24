@@ -26,5 +26,5 @@ function reload() {
 	//$('table#table-ajax').qTable('reload');
 }
 function nLink(url) {
-	$('table#table-ajax').qTable(url);
+	$('table#table-ajax').qTable('load_url',url);
 }

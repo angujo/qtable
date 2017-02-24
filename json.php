@@ -1041,5 +1041,5 @@ if (isset($qTable['order'])) {
 header('Content-Type:application/json;charset:utf8;');
 $d = ['total' => count($data), 'data' => array_slice($data, $start, $len)];
 echo json_encode($d);
-sleep(1);
+//sleep(1);
 die();

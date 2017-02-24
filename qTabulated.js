@@ -194,8 +194,6 @@
 			}, ti);
 			if (this.ajax.lazyTotal > this.data.length) {
 				this._ajax();
-			} else {
-				this.ajax.lazy = false;
 			}
 		},
 		_lazyProgress   : function (w) {
@@ -338,6 +336,8 @@
 			});
 		},
 		_manipulate     : function () {
+			this.searched = false;
+			this.sorted = false;
 			this._search();
 			this._sort();
 			if (this.ajax && !this.ajax.lazy) this._ajax(); else this._setData();
