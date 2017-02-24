@@ -1,12 +1,20 @@
-.qtable-hc {
+/*!
+ * @author Barrack Angujo
+ * @twitter @angujomondi
+ * @link https://github.com/angujo/qtable
+ * @license MIT
+ *
+ */
+.q-tabulated {
+  position: relative;
+  background: #ffffff;
+}
+.q-tabulated .qtable-hc {
   display: flex;
   flex-direction: row;
   align-content: space-between;
   justify-content: space-between;
   align-items: center;
-}
-.q-tabulated {
-  position: relative;
 }
 .q-tabulated .q-no-data {
   display: flex;
@@ -107,33 +115,33 @@
   min-width: 12px;
   width: 96%;
 }
-.hidden {
+.q-tabulated .hidden {
   display: none !important;
 }
-.qtable-fc {
+.q-tabulated .qtable-fc {
   display: flex;
   flex-direction: row;
   align-content: space-between;
   justify-content: space-between;
   align-items: center;
 }
-.qtable-fc .qtable-pagination {
+.q-tabulated .qtable-fc .qtable-pagination {
   padding: 0;
   list-style: none;
 }
-.qtable-fc .qtable-pagination li {
+.q-tabulated .qtable-fc .qtable-pagination li {
   list-style: none;
   display: inline-block;
   margin: 3px 1px;
 }
-.qtable-fc .qtable-pagination li.active {
+.q-tabulated .qtable-fc .qtable-pagination li.active {
   color: #e8e8e8;
 }
-.qtable-fc .qtable-pagination li.active a:hover {
+.q-tabulated .qtable-fc .qtable-pagination li.active a:hover {
   background: inherit;
   cursor: default;
 }
-.qtable-fc .qtable-pagination li a {
+.q-tabulated .qtable-fc .qtable-pagination li a {
   cursor: pointer;
   padding: 4px 7px;
   border: 1px solid #ccc;
@@ -143,6 +151,6 @@
   display: block;
   text-align: center;
 }
-.qtable-fc .qtable-pagination li a:hover {
+.q-tabulated .qtable-fc .qtable-pagination li a:hover {
   background: #e8e8e8;
 }

@@ -1,6 +1,13 @@
 /**
  * Created by bangujo on 21/02/2017.
  */
+/*!
+ * @author Barrack Angujo
+ * @twitter @angujomondi
+ * @link https://github.com/angujo/qtable
+ * @license MIT
+ * @author angujo
+ */
 ;(function ($) {
 	"use strict";
 	var pluginName = "qTable",
