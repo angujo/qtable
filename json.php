@@ -1039,7 +1039,7 @@ if (isset($qTable['order'])) {
     call_user_func_array('array_multisort', $p);
 }
 header('Content-Type:application/json;charset:utf8;');
-$d = ['rows' => count($data), 'data' => array_slice($data, $start, $len)];
+$d = ['total' => count($data), 'data' => array_slice($data, $start, $len)];
 echo json_encode($d);
 sleep(1);
 die();

@@ -3,6 +3,7 @@
  */
 (function ($) {
 	$('.q-table').qTable({pageRows: [5, 100, 250, 1000], pgn: 2, searchCharacters: 1});
+	$('.q-table-lazy').qTable({pageRows: [20, 100, 250, 1000], pgn: 2, searchCharacters: 1, lazyLoad: true});
 	$('.q-reload').click(function () {
 		reload();
 	});

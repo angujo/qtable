@@ -15,7 +15,9 @@
 			},
 			pageRows        : [20, 30, 50, 100],
 			pgn             : 5,
-			searchCharacters: 3
+			searchCharacters: 3,
+			data            : [],
+			lazyLoad        : false
 		};
 
 	// The actual plugin constructor
@@ -33,6 +35,9 @@
 		this.dataCount = 0;
 		this.currentData = [];
 		this.filteredData = [];
+		this.columns = 0;
+		this.searched = false;
+		this.sorted = false;
 		this.overlay = null;
 		this.rows = this.settings.pageRows[0];
 		this._data_parameters();
@@ -41,7 +46,7 @@
 
 	// Avoid Plugin.prototype conflicts
 	$.extend(Plugin.prototype, {
-		init               : function () {
+		init            : function () {
 			var h = $('<div class="q-tabulated"></div>'),
 				tw = $('<div class="qtable-responsive"></div>'),
 				hc = $('<div class="qtable-hc"><label>Rows:<select></select></label></div>'),
@@ -58,7 +63,7 @@
 			this._body();
 			this._actions();
 		},
-		_header            : function () {
+		_header         : function () {
 			var me = this, thSearch = [], thCount = 0;
 			for (var i = 0; i < this.settings.pageRows.length; i++) {
 				this.$header.find('select').append('<option value="' + this.settings.pageRows[i] + '">' + this.settings.pageRows[i] + '</option>');
@@ -84,7 +89,12 @@
 				}
 				sr.insertAfter(this.$element.find('thead>tr:last-child'));
 			}
-		}, _qoptions       : function (element, searches) {
+			this.$element.find('thead>tr').each(function () {
+				me.columns = $('th,td', this).length > me.columns ? $('th,td', this).length : me.columns;
+			});
+
+		},
+		_qoptions       : function (element, searches) {
 			var options = element.data('qoptions').split(',');
 			for (var i = 0; i < options.length; i++) {
 				if (this.ajax && !element.closest('th,td').data('qname').toString().length) continue;
@@ -105,7 +115,7 @@
 				}
 			}
 		},
-		_body              : function () {
+		_body           : function () {
 			if (!this.$element.find('thead').length) {
 				alert('Tables should have <THEAD/> tags!');
 				return;
@@ -116,8 +126,11 @@
 				$b.insertAfter(this.$element.find('thead'));
 			}
 			if (this.ajax) this._ajax(); else this._basic();
-		}, _ajax           : function () {
-			var me = this, d = {start: ((me.page - 1) * me.rows), length: me.rows};
+		},
+		_ajax           : function () {
+			var me = this, st = this.ajax.lazyPage ? (this.ajax.lazyPage + 1) : me.page,
+				r = this.ajax.lazyRows ? (this.ajax.lazyRows) : me.rows,
+				d = {start: ((st - 1) * r), length: r}, started = Date.now();
 			d = $.extend({}, d, this.ajax.data);
 			if (this.ajax.run && this.ajax.status) {
 				this.ajax.run.abort();
@@ -139,49 +152,113 @@
 					}
 				}, method : 'get',
 				success   : function (res) {
-					me.data = res.data;
-					me.dataCount = res.rows;
-					me._setData();
+					if (!me.ajax.lazy || (me.ajax.lazy && me.ajax.lazyPage == 0)) {
+						me.data = res.data;
+						me.dataCount = me.ajax.lazy ? res.data.length : res.total;
+						me.ajax.lazyTotal = res.total;
+						me.ajax.lazyRows = me.rows;
+						me._setData();
+					}
+					me._lazyStatus(res.data, (Date.now() - started));
 				}
 			});
-		}, _basic          : function () {
+		},
+		_lazyStatus     : function (newData, duration) {
+			if (!this.ajax.lazy) return;
+			this.ajax.lazyPage++;
+			var prev = 0, me = this;
+			if (this.ajax.lazyPage > 1) {
+				prev = ((this.data.length * 100) / this.ajax.lazyTotal);
+				this.data = this.data.concat(newData);
+			}
+			var newL = ((this.data.length * 100) / this.ajax.lazyTotal), dif = (newL - prev), ti = (0.1 * duration) / (0 >= dif ? (prev) : dif);
+			this.dataCount = this.data.length;
+			this._footer();
+			this._lazyProgress(prev);
+			if (this.ajax.lazyLapse) clearInterval(this.ajax.lazyLapse);
+			this.ajax.lazyLapse = setInterval(function () {
+				prev = prev + 0.1;
+				if (prev >= newL) {
+					clearInterval(me.ajax.lazyLapse);
+					me.ajax.lazyLapse = null;
+				} else {
+					me._lazyProgress(prev);
+				}
+			}, ti);
+			if (this.ajax.lazyTotal > this.data.length) {
+				this._ajax();
+			}
+		},
+		_lazyProgress   : function (w) {
+			w = +w.toFixed(1);
+			var $pro = this.$header.parent().find('.q-lazy-progress');
+			if (!this.$header.parent().find('.q-lazy-progress').length) {
+				$pro =
+					$('<div class="q-lazy-progress" style="display: none;"><span class="q-indicator"></span><span class="q-lazy-progress-arrow-holder"><span class="q-lazy-progress-arrow"></span></span></div>');
+				$pro.insertAfter(this.$header);
+				$pro.slideDown(300);
+			}
+			$pro.find('span.q-indicator').css({width: w + '%'});
+			$pro.find('span.q-lazy-progress-arrow').text(w + '%');
+			if (w >= 100) {
+				setTimeout(function () {
+					$pro.slideUp(300);
+				}, 3000)
+			}
+		},
+		_basic          : function () {
 			this._overlayStart();
 			var d = [];
-			this.$element.find('tbody>tr').each(function () {
-				var row = [];
-				$(this).find('td,th').each(function () {
-					row.push($(this).html());
+			if (this.settings.data.length) {
+				this.ajax = null;
+				d = this.settings.data;
+			} else {
+				this.$element.find('tbody>tr').each(function () {
+					var row = [];
+					$(this).find('td,th').each(function () {
+						row.push($(this).html());
+					});
+					d.push(row);
 				});
-				d.push(row);
-			});
+			}
 			this.data = d;
 			this.dataCount = d.length;
 			this._setData();
-		}, _data_parameters: function () {
+		},
+		_data_parameters: function () {
 			this.settings.url = this.$element.data('url') ? this.$element.data('url') : this.settings.url;
 			if (this.settings.url) {
-				this.ajax = {url: this.settings.url, data: {}, run: null, status: false};
+				this.ajax = {
+					url : this.settings.url, data: {}, run: null, status: false,
+					lazy: this.settings.lazyLoad, lazyPage: 0, lazyTotal: 0, lazyLapse: null, lazyRows: 0
+				};
 			}
-		}, _setData        : function () {
-			if (this.ajax) {
-				this.currentData = this.data
+		},
+		_setData        : function () {
+			if (this.ajax && !this.ajax.lazy) {
+				this.currentData = JSON.parse(JSON.stringify(this.data));
 			} else {
 				var s = ((this.page - 1) * this.rows), l = s + this.rows;
-				this.currentData = this.filteredData.length ? this.filteredData.slice(s, l) : this.data.slice(s, l);
+				this.currentData = this.searched || this.sorted ? this.filteredData.slice(s, l) : this.data.slice(s, l);
 			}
 			this._remove();
-			for (var i = 0; i < this.currentData.length; i++) {
-				var r = [];
-				for (var j = 0; j < this.currentData[i].length; j++) r.push('<td>' + this.currentData[i][j] + '</td>');
-				this.$element.find('tbody').append('<tr>' + r.join('') + '</tr>');
+			if (this.currentData.length) {
+				for (var i = 0; i < this.currentData.length; i++) {
+					var r = [], l = (this.currentData[i].length > this.columns || this.currentData[i].length < this.columns) ? this.columns : this.currentData[i].length;
+					for (var j = 0; j < l; j++) r.push('<td>' + this.currentData[i][j] + '</td>');
+					this.$element.find('tbody').append('<tr>' + r.join('') + '</tr>');
+				}
+			} else {
+				this.$element.find('tbody').html('<tr><td colspan="' + this.columns + '"><div class="q-no-data">No Data loaded...</div></td></tr>');
 			}
 			this._footer();
 			this._overlayStop();
-		}, _remove         : function () {
+		},
+		_remove         : function () {
 			//TODO some animations for out
 			this.$element.find('tbody').html("");
 		},
-		_footer            : function () {
+		_footer         : function () {
 			var pgs = Math.ceil(this.dataCount / (this.rows <= 0 ? 1 : this.rows)), sp = [], s = 0, p = 0,
 				pgmrg = (this.settings.pgn % 2) ? this.settings.pgn : (this.settings.pgn + 1);
 			var mrgn = Math.ceil(pgmrg / 2);
@@ -203,36 +280,39 @@
 				}
 			}
 			this.$footer.find('.qtable-pd').html('');
-			this.$footer.find('.qtable-pagination').html('');
 			this.$footer.show();
 			if (sp.length > 1) {
 				this.$footer.find('.qtable-pd').html("Page <b>" + this.page + "</b> of <b>" + pgs + "</b>");
-				if (1 < sp[0]) {
-					this.$footer.find('.qtable-pagination').append('<li><a data-pg="1">|<</a></li>');
-					this.$footer.find('.qtable-pagination').append('<li><a data-pg="' + (this.page - 1) + '"><</a></li>');
-				}
-				for (p = 0; p < sp.length; p++) {
-					var a = sp[p] == this.page ? 'class="active"' : '';
-					this.$footer.find('.qtable-pagination').append('<li ' + a + '><a data-pg="' + sp[p] + '">' + sp[p] + '</a></li>');
-				}
-				if (pgs > sp[(sp.length - 1)]) {
-					this.$footer.find('.qtable-pagination').append('<li><a data-pg="' + (this.page + 1) + '">></a></li>');
-					this.$footer.find('.qtable-pagination').append('<li><a data-pg="' + pgs + '">>|</a></li>');
+				if (this.page >= sp[0] || this.page <= sp[(sp.length - 1)]) {
+					this.$footer.find('.qtable-pagination').html('');
+					if (1 < sp[0]) {
+						this.$footer.find('.qtable-pagination').append('<li><a data-pg="1">|<</a></li>');
+						this.$footer.find('.qtable-pagination').append('<li><a data-pg="' + (this.page - 1) + '"><</a></li>');
+					}
+					for (p = 0; p < sp.length; p++) {
+						var a = sp[p] == this.page ? 'class="active"' : '';
+						this.$footer.find('.qtable-pagination').append('<li ' + a + '><a data-pg="' + sp[p] + '">' + sp[p] + '</a></li>');
+					}
+					if (pgs > sp[(sp.length - 1)]) {
+						this.$footer.find('.qtable-pagination').append('<li><a data-pg="' + (this.page + 1) + '">></a></li>');
+						this.$footer.find('.qtable-pagination').append('<li><a data-pg="' + pgs + '">>|</a></li>');
+					}
 				}
 			} else {
+				this.$footer.find('.qtable-pagination').html('');
 				this.$footer.hide();
 			}
 		},
-		_actions           : function () {
+		_actions        : function () {
 			var me = this;
 			this.$footer.on('click', 'li:not(.active) a', function () {
 				me.page = $(this).data('pg');
-				if (me.ajax) me._ajax(); else me._setData();
+				if (me.ajax && !me.ajax.lazy) me._ajax(); else me._setData();
 			});
 			this.$header.on('change', 'select', function () {
 				me.page = 1;
 				me.rows = parseInt($(this).val());
-				if (me.ajax) me._ajax(); else me._setData();
+				if (me.ajax && !me.ajax.lazy) me._ajax(); else me._setData();
 			});
 			this.$element.on('click', 'thead>tr>th>a.q-sorter', function () {
 				if ($(this).hasClass('qsort-asc')) {
@@ -242,33 +322,35 @@
 				} else {
 					$(this).addClass('qsort-asc');
 				}
-				me._sort();
+				me._manipulate();
 			});
 			this.$element.on('keyup', 'thead>tr.q-search input', function () {
-				me._search();
+				me._manipulate();
 			});
 		},
-		_search            : function (queryOnly, filtered) {
-			filtered = filtered || false;
-			queryOnly = queryOnly || false;
-			var indices = this.ajax ? {} : [], me = this;
+		_manipulate     : function () {
+			this._search();
+			this._sort();
+			if (this.ajax && !this.ajax.lazy) this._ajax(); else this._setData();
+		},
+		_search         : function () {
+			var indices = this.ajax && !this.ajax.lazy ? {} : [], me = this;
 			this.$element.find('thead>tr.q-search input').each(function () {
 				if (!$(this).val() || me.settings.searchCharacters > $(this).val().length) return true;
-				if (me.ajax) {
+				if (me.ajax && !me.ajax.lazy) {
 					if ($(this).attr('name').toString().length) {
 						indices[$(this).attr('name')] = $(this).val();
 					}
 				}
 				else indices.push({i: $(this).closest('th,td').index(), v: $(this).val()});
 			});
-			if (this.ajax) {
+			if (this.ajax && !this.ajax.lazy) {
 				this.ajax.data.search = indices;
-				if (queryOnly) return;
-				this._ajax();
 				return;
 			}
 			if (indices.length) {
-				var d = filtered ? this.filteredData : JSON.parse(JSON.stringify(this.data));
+				this.searched = true;
+				var d = this.sorted ? this.filteredData : JSON.parse(JSON.stringify(this.data));
 				this.filteredData = [];
 				for (var i = 0; i < d.length; i++) {
 					var s = true;
@@ -281,32 +363,29 @@
 					if (s) this.filteredData.push(d[i]);
 				}
 			} else {
-				this.filteredData = filtered ? this.filteredData : [];
+				this.searched = false;
+				this.filteredData = this.sorted ? this.filteredData : [];
 			}
 			this.page = 1;
-			this.dataCount = indices.length || filtered ? this.filteredData.length : this.data.length;
-			this._setData();
+			this.dataCount = this.searched || this.sorted ? this.filteredData.length : this.data.length;
 		},
-		_sort              : function (queryOnly, filtered) {
-			filtered = filtered || false;
-			queryOnly = queryOnly || false;
-			var indices = this.ajax ? {} : [], me = this;
+		_sort           : function () {
+			var indices = this.ajax && !this.ajax.lazy ? {} : [], me = this;
 			this.$element.find('thead tr a.q-sorter.qsort-asc,thead tr a.q-sorter.qsort-desc').each(function () {
-				if (me.ajax) {
+				if (me.ajax && !me.ajax.lazy) {
 					if ($(this).closest('th,td').data('qname').toString().length) {
 						indices[$(this).closest('th,td').data('qname')] = ($(this).hasClass('qsort-desc') ? 'desc' : 'asc');
 					}
 				}
 				else indices.push({i: $(this).closest('th,td').index(), o: $(this).hasClass('qsort-desc')});
 			});
-			if (this.ajax) {
+			if (this.ajax && !this.ajax.lazy) {
 				this.ajax.data.order = indices;
-				if (queryOnly) return;
-				this._ajax();
 				return;
 			}
 			if (indices.length) {
-				this.filteredData = filtered ? this.filteredData : JSON.parse(JSON.stringify(this.data));
+				this.sorted = true;
+				this.filteredData = this.searched ? this.filteredData : JSON.parse(JSON.stringify(this.data));
 				for (var i = 0; i < indices.length; i++) {
 					(function (i, m) {
 						m.filteredData.sort(function (a, b) {
@@ -326,23 +405,30 @@
 					})(i, this);
 				}
 			} else {
-				this.filteredData = filtered ? this.filteredData : [];
+				this.sorted = false;
+				this.filteredData = this.searched ? this.filteredData : [];
 			}
-			this._setData();
 		},
-		_overlayStart      : function () {
+		_overlayStart   : function () {
 			if (!this.overlay) {
 				this.overlay = $('<div class="qtable-overlay"><span>Loading Data...</span></div>');
 				this.overlay.prependTo(this.$element.parent());
 			}
-			this.overlay.css({display: 'flex'});
+			this.overlay.css({display: 'flex', top: this.$element.find('tbody').offset().top, bottom: this.$element.find('tbody').offset().bottom});
 		},
-		_overlayStop       : function () {
+		_overlayStop    : function () {
 			if (this.overlay) this.overlay.css({display: 'none'});
 		}
 	});
 
 	var methods = {
+		set_data: function (theData) {
+			this.ajax = null;
+			this.page = 1;
+			this.data = theData;
+			this.dataCount = theData.length;
+			this._setData();
+		},
 		gotoPage: function (page) {
 			this.page = page;
 			if (this.ajax) this._ajax(); else this._setData();

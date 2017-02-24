@@ -8,6 +8,63 @@
 .q-tabulated {
   position: relative;
 }
+.q-tabulated .q-no-data {
+  display: flex;
+  flex-direction: row;
+  align-content: center;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  color: #8d8d8d;
+  font-weight: bold;
+}
+.q-tabulated .q-lazy-progress {
+  padding-top: 3px;
+  position: relative;
+  padding-right: 34px !important;
+}
+.q-tabulated .q-lazy-progress span.q-indicator {
+  display: inline-block;
+  background: #21ae1a;
+  width: 2%;
+  height: 3px;
+}
+.q-tabulated .q-lazy-progress span.q-lazy-progress-arrow-holder {
+  position: relative;
+}
+.q-tabulated .q-lazy-progress span.q-lazy-progress-arrow-holder .q-lazy-progress-arrow {
+  position: absolute;
+  background: #88b7d5;
+  border: 1px solid #c2e1f5;
+  padding: 3px;
+  font-size: 9px;
+  bottom: -3px;
+  color: #ffffff;
+  font-weight: bold;
+}
+.q-tabulated .q-lazy-progress span.q-lazy-progress-arrow-holder .q-lazy-progress-arrow:after,
+.q-tabulated .q-lazy-progress span.q-lazy-progress-arrow-holder .q-lazy-progress-arrow:before {
+  right: 100%;
+  top: 50%;
+  border: solid transparent;
+  content: " ";
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+}
+.q-tabulated .q-lazy-progress span.q-lazy-progress-arrow-holder .q-lazy-progress-arrow:after {
+  border-color: rgba(136, 183, 213, 0);
+  border-right-color: #88b7d5;
+  border-width: 5px;
+  margin-top: -5px;
+}
+.q-tabulated .q-lazy-progress span.q-lazy-progress-arrow-holder .q-lazy-progress-arrow:before {
+  border-color: rgba(194, 225, 245, 0);
+  border-right-color: #c2e1f5;
+  border-width: 6px;
+  margin-top: -6px;
+}
 .q-tabulated .qtable-overlay {
   position: absolute;
   top: 0;
