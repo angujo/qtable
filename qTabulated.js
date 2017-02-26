@@ -445,11 +445,13 @@
 		reload     : function (options) {
 			options = options || {};
 			var set = $.extend({}, this._options, options), $t = this.$element;
-			this.destroy();
+			methods.destroy();
 			$t.qTable(set);
 		},
 		refresh    : function () {
-			this.reload();
+			if(this.ajax){
+				this._ajax();
+			}
 		},
 		destroy    : function () {
 			this.$element.insertAfter(this.$header.parent());
